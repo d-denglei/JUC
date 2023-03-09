@@ -33,6 +33,7 @@ public class SaleTicketDemo01 {
             }
         }, "C").start();
     }
+    
 }
 
 //资源类
