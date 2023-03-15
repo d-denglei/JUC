@@ -3,6 +3,9 @@ package com.deng.demo01;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+/**
+ * lock写法
+ */
 public class SaleTicketDemo02 {
     public static void main(String[] args) {
         //并发:多个线程操作同一个资源， 把资源类丢入线程
@@ -47,7 +50,7 @@ class Ticket2 {
     //卖票的方式
     public void sale() {
         lock.lock();
-        lock.tryLock();
+//        lock.tryLock();
         try {
             if (number > 0) {
                 System.out.println(Thread.currentThread().getName()
