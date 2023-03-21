@@ -154,6 +154,16 @@ sleep需要捕获一个超时等待异常
 
 **ReentrantLock:可重入锁(常用)**
 
+--首先ReentrantLock里面有三个类主要Sync继承自AQS类，然后还有一个非公平锁跟公平锁 继承自Sync类
+
+AQS中维护了一个先进先出的等待队列用来记录等待的线程队列里面存放的是node节点，node中有个state状态表示表示当前线程状态状态
+
+非公平锁跟公平锁区别在于当点lock的时候，非公平锁不会等待 会先去抢占一次锁，抢占失败会通过tryAcquire再次抢占一次锁，如果两次锁都没抢占成功那么就会把当前线程放入队列中，
+
+公平锁，最开始抢占锁的时候会去判断当前是否存在等待时间更长的线程，如果存在的话那么就会加入队列尾部实现公平获取原则
+
+
+
 **ReentrantReadWriteLock.ReadLock:读锁**
 
 **ReentrantReadWriteLock.WriteLock:写锁**
@@ -715,6 +725,73 @@ public class ListTest {
 CopyOnWriteArraylist 底层维护了一个Reentranklock 可冲入锁跟一个被voliate 修饰的数组
 
 一般用户多读少写，写入时候复制一份原有数据并且新增数据到新集合中然后替换原有数据引用地址
+
+
+
+```JAVA
+package com.deng.unsafe;
+
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
+public class MapTest {
+    public static void main(String[] args) {
+        //map 日常工作如果要用map切保证安全 尽量用ConCurrentHashMap
+        //默认等价于   new HashMap<>(16,0.75f)
+//        HashMap<String, String> map = new HashMap<>();
+        Map<String, String> map = new ConcurrentHashMap<>();
+        for (int i = 0; i < 10; i++) {
+            new Thread(() -> {
+                map.put(Thread.currentThread().getName(), UUID.randomUUID().toString().substring(0, 5));
+                System.out.println(map);
+            }).start();
+        }
+    }
+}
+
+```
+
+## 7、Callable
+
+
+
+```
+@FunctionalInterface
+public interface Callable<V>
+返回结果并可能引发异常的任务。 实现者定义一个没有参数的单一方法，称为call 。
+Callable接口类似于Runnable ，因为它们都是为其实例可能由另一个线程执行的类设计的。 然而，A Runnable不返回结果，也不能抛出被检查的异常。
+
+该Executors类包含的实用方法，从其他普通形式转换为Callable类。
+```
+
+1、可以有返回值
+
+2、可以抛出异常
+
+3、方法不同 普通thread 或者runnalbe是 run()方法入口，这个是call().
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
