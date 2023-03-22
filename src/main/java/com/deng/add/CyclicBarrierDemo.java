@@ -4,11 +4,12 @@ import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
 
 /**
+ * 计数器 +1
+ *
  * @author DengLei
  * @date 2023/03/21 15:48
  */
 
-//计数器 +1
 public class CyclicBarrierDemo {
     public static void main(String[] args) {
         /**
