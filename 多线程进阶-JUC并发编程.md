@@ -771,6 +771,376 @@ Callable接口类似于Runnable ，因为它们都是为其实例可能由另一
 
 3、方法不同 普通thread 或者runnalbe是 run()方法入口，这个是call().
 
+```JAVA
+package com.deng.callable;
+
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.FutureTask;
+
+/**
+ * @author DengLei
+ * @date 2023/03/21 10:54
+ */
+
+public class CallableTest {
+    public static void main(String[] args) throws ExecutionException, InterruptedException {
+        //new Thread(new  Runnable()).start();
+        //new Thread(new  MyThread()).start();
+        //等价于 new Thread(new FutureTask<V>( Callable  )).start();
+        new Thread().start();//如何启动Callable
+
+        MyThread myThread = new MyThread();
+        FutureTask<String> futureTask = new FutureTask<>(myThread);
+        //添加适配类绑定到Thread中
+
+        new Thread(futureTask, "A").start();
+        new Thread(futureTask, "B ").start();
+        String o = futureTask.get();//get方法可能会产生阻塞 会等待线程返回结果
+        System.out.println(o);
+
+    }
+}
+
+class MyThread implements Callable<String> {
+
+    @Override
+    public String call() throws Exception {
+        System.out.println("call()");
+        return "123456";
+    }
+}
+
+
+```
+
+##### 细节：
+
+1、同一个feturetask多次执行的话只会获取第一个结果，根据源码执行run方法会去判断 state如果state状态不是新建状态0就会直接返回
+
+2、 结果可能会需要等待，会阻塞！
+
+```JAVA
+ public void run() {
+        if (state != NEW ||
+            !UNSAFE.compareAndSwapObject(this, runnerOffset,
+                                         null, Thread.currentThread()))
+            return;
+        try {
+            Callable<V> c = callable;
+            if (c != null && state == NEW) {
+                V result;
+                boolean ran;
+                try {
+                    result = c.call();
+                    ran = true;
+                } catch (Throwable ex) {
+                    result = null;
+                    ran = false;
+                    setException(ex);
+                }
+                if (ran)
+                    set(result);
+            }
+        } finally {
+            // runner must be non-null until state is settled to
+            // prevent concurrent calls to run()
+            runner = null;
+            // state must be re-read after nulling runner to prevent
+            // leaked interrupts
+            int s = state;
+            if (s >= INTERRUPTING)
+                handlePossibleCancellationInterrupt(s);
+        }
+    }
+```
+
+
+
+## 8、JUC下常用辅助类
+
+### 	8.1、CountDownLatch
+
+
+
+```JAVA
+package com.deng.add;
+
+import java.util.concurrent.CountDownLatch;
+
+/**
+ * 计数器 -1
+ *
+ * @author DengLei
+ * @date 2023/03/21 15:25
+ */
+public class CountDownLatchDemo {
+    public static void main(String[] args) throws InterruptedException {
+        //总数是6 必须要等6执行任务的时候再使用!
+        CountDownLatch countDownLatch = new CountDownLatch(6);
+        for (int i = 1; i <= 6; i++) {
+            new Thread(() -> {
+                System.out.println(Thread.currentThread().getName() + "Go out");
+                countDownLatch.countDown();//数量-1
+            }, String.valueOf(i)).start();
+        }
+        countDownLatch.await();//等待计数器归零，然后继续操作
+        System.out.println("close Door");
+    }
+}
+
+```
+
+##### 原理：
+
+countDownLatch.countDown()  //数量-1
+
+countDownLatch.await(); //等待计数器归零，然后再向下执行
+
+每次有线程调用countDown 就把数量-1，假设计数器为0，那么
+
+countDownLatch.await() 就会被唤醒继续执行
+
+### 	8.2、CycliBarrier
+
+```JAVA
+package com.deng.add;
+
+import java.util.concurrent.BrokenBarrierException;
+import java.util.concurrent.CyclicBarrier;
+
+/**
+ * 计数器 +1
+ *
+ * @author DengLei
+ * @date 2023/03/21 15:48
+ */
+
+public class CyclicBarrierDemo {
+    public static void main(String[] args) {
+        /**
+         * 集齐七颗龙珠召唤神龙 线程
+         */
+        //召唤龙珠线程
+        CyclicBarrier cyclicBarrier = new CyclicBarrier(6, () -> {
+            System.out.println("召唤神龙成功！");
+        });
+
+
+        for (int i = 1; i <= 6; i++) {
+
+            final int temp = i;
+            //lambda 无法操作匿名内部类外面的值
+            new Thread(() -> {
+                System.out.println(Thread.currentThread().getName() + "收集了" + temp + "龙珠");
+                try {
+                    cyclicBarrier.await();//等待
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                } catch (BrokenBarrierException e) {
+                    e.printStackTrace();
+                }
+            }).start();
+        }
+    }
+}
+
+```
+
+
+
+##### CountDownLatch跟CycliBarrier区别：
+
+CountDownLatch只要阻塞足够多的次数就够了，不需要管几个线程执行，如果一个线程多次执行countdown也可以满足。
+
+CycliBarrier  线程之间会等待 只有所有线程都执行了await才会继续往下走
+
+### 	8.3、Semaphore
+
+```java
+public class Semaphore
+extends Object
+implements Serializable
+一个计数信号量。 在概念上，信号量维持一组许可证。 如果有必要，每个acquire()都会阻塞，直到许可证可用，然后才能使用它。 每个release()添加许可证，潜在地释放阻塞获取方。 但是，没有使用实际的许可证对象; Semaphore只保留可用数量的计数，并相应地执行。
+信号量通常用于限制线程数，而不是访问某些（物理或逻辑）资源。 例如，这是一个使用信号量来控制对一个项目池的访问的类：
+
+   class Pool { private static final int MAX_AVAILABLE = 100; private final Semaphore available = new Semaphore(MAX_AVAILABLE, true); public Object getItem() throws InterruptedException { available.acquire(); return getNextAvailableItem(); } public void putItem(Object x) { if (markAsUnused(x)) available.release(); } // Not a particularly efficient data structure; just for demo protected Object[] items = ... whatever kinds of items being managed protected boolean[] used = new boolean[MAX_AVAILABLE]; protected synchronized Object getNextAvailableItem() { for (int i = 0; i < MAX_AVAILABLE; ++i) { if (!used[i]) { used[i] = true; return items[i]; } } return null; // not reached } protected synchronized boolean markAsUnused(Object item) { for (int i = 0; i < MAX_AVAILABLE; ++i) { if (item == items[i]) { if (used[i]) { used[i] = false; return true; } else return false; } } return false; } } 
+在获得项目之前，每个线程必须从信号量获取许可证，以确保某个项目可用。 当线程完成该项目后，它将返回到池中，并将许可证返回到信号量，允许另一个线程获取该项目。 请注意，当调用acquire()时，不会保持同步锁定，因为这将阻止某个项目返回到池中。 信号量封装了限制对池的访问所需的同步，与保持池本身一致性所需的任何同步分开。
+
+信号量被初始化为一个，并且被使用，使得它只有至多一个允许可用，可以用作互斥锁。 这通常被称为二进制信号量 ，因为它只有两个状态：一个许可证可用，或零个许可证可用。 当以这种方式使用时，二进制信号量具有属性（与许多Lock实现不同），“锁”可以由除所有者之外的线程释放（因为信号量没有所有权概念）。 这在某些专门的上下文中是有用的，例如死锁恢复。
+
+此类的构造函数可选择接受公平参数。 当设置为false时，此类不会保证线程获取许可的顺序。 特别是， 闯入是允许的，也就是说，一个线程调用acquire()可以提前已经等待线程分配的许可证-在等待线程队列的头部逻辑新的线程将自己。 当公平设置为真时，信号量保证调用acquire方法的线程被选择以按照它们调用这些方法的顺序获得许可（先进先出; FIFO）。 请注意，FIFO排序必须适用于这些方法中的特定内部执行点。 因此，一个线程可以在另一个线程之前调用acquire ，但是在另一个线程之后到达排序点，并且类似地从方法返回。 另请注意， 未定义的tryAcquire方法不符合公平性设置，但将采取任何可用的许可证。
+```
+
+
+
+```JAVA
+package com.deng.add;
+
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
+
+/**
+ * @author DengLei
+ * @date 2023/03/22 16:11
+ */
+//模拟停车位  6个车 三个车位 1一个车位空出来了就进去一个车
+public class SemaphoreDemo {
+    public static void main(String[] args) {
+        //线程数量：停车位 //做限流可以用到这个
+        //Semaphore的参数代表资源数
+        Semaphore semaphore = new Semaphore(3);
+        for (int i = 1; i <= 6; i++) {
+            new Thread(() -> {
+                //acquire() 得到车位
+                try {
+                    semaphore.acquire();
+                    System.out.println(Thread.currentThread().getName() + "抢到车位");
+                    TimeUnit.SECONDS.sleep(2);
+                    //停了两秒后 离开
+                    System.out.println(Thread.currentThread().getName() + "离开车位");
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                } finally {
+                    //释放
+                    semaphore.release();
+                }
+
+            }, String.valueOf(i)).start();
+        }
+
+    }
+}
+
+```
+
+
+
+##### 原理:
+
+semaphore.acquire() 获取资源，假设如果已经满了，那么会等待，知道资源被释放
+
+semaphore.release() 释放，会将当前的信号量-1，然后唤醒等待的线程！作用：多个共享资源互斥的使用！并发限流,控制最大的线程数！
+
+
+
+## 9、读写锁：ReadWriteLock
+
+
+
+```JAVA
+package com.deng.read_write_lock;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+
+/**
+ * 独占锁(写锁) 一次只能一个线程占有
+ * 共享锁(读锁) 多个线程可以同时占有
+ * ReadWriteLock
+ * 读-读 共存！
+ * 读-写 不共存！
+ * 写-写 不共存！
+ */
+public class ReadWriteLockDemo {
+
+    public static void main(String[] args) {
+//        MyCache myCache = new MyCache();
+        MyCacheLock myCache = new MyCacheLock();
+        for (int i = 1; i <= 10; i++) {
+            final int temp = i;
+            new Thread(() -> {
+                myCache.put(temp + "", temp + "");
+            }, String.valueOf(i)).start();
+        }
+        for (int i = 1; i <= 10; i++) {
+            final int temp = i;
+            new Thread(() -> {
+                myCache.get(temp + "");
+            }, String.valueOf(i)).start();
+        }
+
+    }
+}
+
+class MyCache {
+
+    private volatile Map<String, Object> map = new HashMap<>();
+
+    //存,写
+    public void put(String key, Object value) {
+        System.out.println(Thread.currentThread().getName() + "写入" + key);
+        map.put(key, value);
+        System.out.println(Thread.currentThread().getName() + "写入ok");
+    }
+
+    //取,读
+    public void get(String key) {
+        System.out.println(Thread.currentThread().getName() + "读取" + key);
+        Object o = map.get(key);
+        System.out.println(Thread.currentThread().getName() + "读取ok");
+
+    }
+}
+
+//加锁的
+class MyCacheLock {
+    private volatile Map<String, Object> map = new HashMap<>();
+    //加读写锁:更加细粒度的控制
+    private ReentrantReadWriteLock readWriteLock = new ReentrantReadWriteLock();
+    private ReentrantLock lock = new ReentrantLock();
+
+    //存,写
+    public void put(String key, Object value) {
+        readWriteLock.writeLock().lock();
+
+        try {
+            System.out.println(Thread.currentThread().getName() + "写入" + key);
+            map.put(key, value);
+            System.out.println(Thread.currentThread().getName() + "写入ok");
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            readWriteLock.writeLock().unlock();
+        }
+
+    }
+
+    //如果读不加锁的话 可能会造成幻读问题 开始读到一个内容 然后读取到另外一个内容
+    //取,读
+    public void get(String key) {
+        readWriteLock.readLock().lock();
+        try {
+            System.out.println(Thread.currentThread().getName() + "读取" + key);
+            Object o = map.get(key);
+            System.out.println(Thread.currentThread().getName() + "读取ok");
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            readWriteLock.readLock().unlock();
+        }
+    }
+}
+```
+
+
+
+## 10、阻塞队列
+
+Blo
+
+
+
+ 
+
+
+
+
+
+
+
 
 
 
