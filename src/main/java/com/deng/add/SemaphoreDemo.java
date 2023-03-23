@@ -13,6 +13,8 @@ public class SemaphoreDemo {
         //线程数量：停车位 //做限流可以用到这个
         //Semaphore的参数代表资源数
         Semaphore semaphore = new Semaphore(3);
+        //可以用  Executors.newFixedThreadPool(10) 来模拟十个车
+
         for (int i = 1; i <= 6; i++) {
             new Thread(() -> {
                 //acquire() 得到车位

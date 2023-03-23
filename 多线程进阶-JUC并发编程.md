@@ -1018,9 +1018,27 @@ public class SemaphoreDemo {
 
 ##### 原理:
 
-semaphore.acquire() 获取资源，假设如果已经满了，那么会等待，知道资源被释放
+​	semaphore.acquire() 获取资源，假设如果已经满了，那么会等待，知道资源被释放
 
-semaphore.release() 释放，会将当前的信号量-1，然后唤醒等待的线程！作用：多个共享资源互斥的使用！并发限流,控制最大的线程数！
+​	semaphore.release() 释放，会将当前的信号量-1，然后唤醒等待的线程！作用：多个共享资源互斥的使用！并发限流,控制最大的线程数！
+
+##### semaphore 四个场景问题
+
+###### 1、semaphore初始化有10个令牌-11个线程同时各调用1次acquire方法-会发生什么？
+
+​	答案：拿不到令牌的线程阻塞，不会继续往下运行。
+
+###### 2、semaphore初始化有10个令牌-一个线程重复调用11次acquire方法-会发生什么?
+
+​	答案：线程阻塞，不会继续往下运行。可能你会考虑类似于锁的重入的问题，很好，但是，令牌没有重入的概念。你只要调用一次acquire方法，就需要有一个令牌才能继续运行。
+
+###### 3、semaphore初始化有1个令牌-1个线程调用一次acquire方法-然后调用两次release方法-之后另外一个线程调用acquire-2-方法-此线程能够获取到足够的令牌并继续运行吗?
+
+​	答案：能，原因是release方法会添加令牌，并不会以初始化的大小为准。
+
+###### 4、semaphore初始化有2个令牌，一个线程调用1次release方法，然后一次性获取3个令牌，会获取到吗?
+
+​	答案：能，原因是release会添加令牌，并不会以初始化的大小为准。Semaphore中release方法的调用并没有限制要在acquire后调用。
 
 
 
@@ -1127,13 +1145,238 @@ class MyCacheLock {
 
 
 
-## 10、阻塞队列
+## 10、1、阻塞队列
 
-Blo
-
-
+```JAVA
+Interface Queue<E>
+参数类型
+E - 保存在此集合中的元素的类型
+All Superinterfaces:
+Collection <E>， Iterable <E>
+All Known Subinterfaces:
+BlockingDeque <E>， BlockingQueue <E>， Deque <E>//双端队列， TransferQueue <E>
+所有已知实现类：
+AbstractQueue ， ArrayBlockingQueue ， ArrayDeque ， ConcurrentLinkedDeque ， ConcurrentLinkedQueue ， DelayQueue ， LinkedBlockingDeque ， LinkedBlockingQueue ， LinkedList ， LinkedTransferQueue ， PriorityBlockingQueue ， PriorityQueue ， SynchronousQueue//同步队列
+```
 
  
+
+#### 如何使用队列？
+
+ 四组API
+
+| 方式       | 抛出异常  | 不会抛出异常，有返回值 | 阻塞等待 | 超时等待        |
+| ---------- | --------- | ---------------------- | -------- | --------------- |
+| 添加       | add()     | offer()                | put()    | offer(等待时间) |
+| 移除       | remove()  | poll()                 | take()   | poll(等待时间)  |
+| 获取队列首 | element() | peek()                 | -        | -               |
+
+
+
+```JAVA
+    /**
+     * 抛出异常
+     */
+    public static void test1() {
+        //队列的大小
+        ArrayBlockingQueue blockingQueue = new ArrayBlockingQueue(3);
+        //进队 add
+        System.out.println(blockingQueue.add("a"));
+        System.out.println(blockingQueue.add("b"));
+        System.out.println(blockingQueue.add("c"));
+
+        //java.util.IllegalStateException: Queue full 队列已满异常
+//        System.out.println(blockingQueue.add("e"));
+
+        //出队 remove
+        System.out.println(blockingQueue.remove());
+        //查看对首元素是谁
+        System.out.println(blockingQueue.element());
+        System.out.println(blockingQueue.remove());
+        System.out.println(blockingQueue.remove());
+        //java.util.NoSuchElementException 队列中没有元素异常！
+//        System.out.println(blockingQueue.remove());
+    }
+
+```
+
+
+
+```JAVA
+      /**
+     * 不抛出异常
+     */
+    public static void test2() {
+        //队列的大小
+        ArrayBlockingQueue blockingQueue = new ArrayBlockingQueue(3);
+        System.out.println(blockingQueue.offer("a"));
+        System.out.println(blockingQueue.offer("b"));
+        System.out.println(blockingQueue.offer("c"));
+
+        //如果队列满了 就加入不进去  false 不抛出异常
+//        System.out.println(blockingQueue.offer("d"));
+
+        //检测队首元素
+//        System.out.println(blockingQueue.peek());
+//        System.out.println(blockingQueue.element());
+        System.out.println(blockingQueue.poll());
+        System.out.println(blockingQueue.poll());
+        System.out.println(blockingQueue.poll());
+        //如果队列空了则 不返回null
+        System.out.println(blockingQueue.peek());
+    }
+```
+
+
+
+```
+    /**
+     * 等待,阻塞(一直阻塞)
+     */
+    public static void test3() throws InterruptedException {
+        //队列的大小
+        ArrayBlockingQueue blockingQueue = new ArrayBlockingQueue(3);
+        //一直阻塞
+        blockingQueue.put("a");
+        blockingQueue.put("b");
+        blockingQueue.put("c");
+//        blockingQueue.put("d"); //阻塞存, 队列没位置了,进入一直等待阻塞中
+        System.out.println(blockingQueue.take());
+        System.out.println(blockingQueue.take());
+        System.out.println(blockingQueue.take());
+//        System.out.println(blockingQueue.take());//阻塞取 当没存在元素会一直阻塞
+    }
+```
+
+
+
+```JAVA
+  /**
+     * 等待,阻塞(超时等待)
+     */
+    public static void test4() throws Exception {
+        //队列的大小
+        ArrayBlockingQueue blockingQueue = new ArrayBlockingQueue(3);
+        System.out.println(blockingQueue.offer("a"));
+        System.out.println(blockingQueue.offer("b"));
+        System.out.println(blockingQueue.offer("c"));
+        //等待超时,如果超出时间就会直接超时返回 false
+        System.out.println(blockingQueue.offer("d", 1, TimeUnit.SECONDS));
+
+        System.out.println(blockingQueue.poll());
+        System.out.println(blockingQueue.poll());
+        System.out.println(blockingQueue.poll());
+        //超时等待，如果从队列中拿不到元素 会等待两秒后返回null
+        System.out.println(blockingQueue.poll(2, TimeUnit.SECONDS));
+    }
+```
+
+
+
+#### 	2、同步对列 
+
+###### 	SynchronousQueue 
+
+​	介绍:没有容量，进去一个元素，必须等待取出以后，才能再放入一个元素！ put，take
+
+
+
+```JAVA
+package com.deng.block_queue;
+
+
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.TimeUnit;
+
+/**
+ * 同步队列
+ * 和其他的BlockingQueue不一样 ，SynchronousQueue不存储元素
+ * put了一个元素,必须从里面先take取出来，否则不能再put进去值！
+ */
+
+public class SynchronousQueueDemo {
+    public static void main(String[] args) {
+        //同步队列
+        BlockingQueue<String> blockingQueue = new SynchronousQueue<>();
+
+        new Thread(() -> {
+            try {
+                System.out.println(Thread.currentThread().getName() + " put 1");
+                blockingQueue.put("1");
+                System.out.println(Thread.currentThread().getName() + " put 2");
+                blockingQueue.put("2");
+                System.out.println(Thread.currentThread().getName() + " put 3");
+                blockingQueue.put("3");
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }, "T1").start();
+
+        new Thread(() -> {
+            try {
+                TimeUnit.SECONDS.sleep(3);
+                System.out.println(Thread.currentThread().getName() + "=>" + blockingQueue.take());
+                TimeUnit.SECONDS.sleep(3);
+                System.out.println(Thread.currentThread().getName() + "=>" + blockingQueue.take());
+                TimeUnit.SECONDS.sleep(3);
+                System.out.println(Thread.currentThread().getName() + "=>" + blockingQueue.take());
+
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }, "T2").start();
+    }
+}
+
+```
+
+
+
+## 11、线程池(重点)
+
+##### 池化技术：
+
+程序的运行，本质：占用系统资源！优化资源使用 => 池化技术！
+
+例如 ：线程池，内存池，常量池，对象池... 创建销毁浪费资源
+
+池化技术：提前准备一些资源，需要用就直接去拿，用完归还
+
+
+
+线程池的好处：
+
+1、降低资源的消耗
+
+2、提交响应速度
+
+3、方便 管理
+
+线程复用，可以控制最大并发数，管理线程
+
+##### <font color='red'>线程池几个要点：三大方法、7大参数、4种拒绝策略</font>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
