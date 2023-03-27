@@ -1366,23 +1366,57 @@ public class SynchronousQueueDemo {
 package com.deng.thread_pool;
 
 
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
 
 /**
  * Executors 工具类 三大方法
+ * new ThreadPoolExecutor.AbortPolicy()  //默认的拒绝策略  抛出异常
+ * new ThreadPoolExecutor.CallerRunsPolicy()   拿来的去哪里
+ * new ThreadPoolExecutor.DiscardPolicy() 队列满了就会丢掉任务 不会抛出异常
+ * new ThreadPoolExecutor.DiscardOldestPolicy() 队列满了，尝试竞争最早的线程  没抢到也不会抛出异常
  */
 public class Demo01 {
+    String a;
+    String b;
+
+    public Demo01() {
+        this("A", "b");
+    }
+
+    public Demo01(String a, String b) {
+        this.a = a;
+        this.b = b;
+    }
+
     public static void main(String[] args) {
+
+
+        /**
+         * 三大方法
+         */
         //单例模式  单线程
 //        ExecutorService threadPool = Executors.newSingleThreadExecutor();
-        //固定的线程池的大小
+//        固定的线程池的大小
 //        ExecutorService threadPool = Executors.newFixedThreadPool(5);
-        //可扩建的线程池
-        ExecutorService threadPool = Executors.newCachedThreadPool();
+//        //可扩建的线程池
+//        ExecutorService threadPool = Executors.newCachedThreadPool();
 
+        /**
+         * 七大参数  四种拒绝策略
+         */
+        // 工作中建议用这个方法去创建 用Executors 创建不太安全
+        ExecutorService threadPool = new ThreadPoolExecutor(
+                2,      //核心线程数
+                5,  //最大线程数
+                3,      //超时释放时间
+                TimeUnit.SECONDS,   //秒
+                new LinkedBlockingQueue<>(3),   //阻塞队列大小
+                Executors.defaultThreadFactory(),       //默认的线程工厂
+                new ThreadPoolExecutor.DiscardOldestPolicy()  //默认的拒绝策略  抛出异常
+        );
         try {
-            for (int i = 0; i < 100; i++) {
+            //最大线程数： maxSize + Deque
+            for (int i = 0; i < 9; i++) {
                 //通过线程池来创建线程
                 threadPool.execute(() -> {
                     System.out.println(Thread.currentThread().getName() + " OK");
@@ -1403,7 +1437,7 @@ public class Demo01 {
 
 
 
-###### 7大参数
+###### 7大参数：
 
 ```JAVA
     public static ExecutorService newSingleThreadExecutor() {
@@ -1457,48 +1491,180 @@ public class Demo01 {
 四种拒绝策略：
 
 ```JAVA
-RejectedExecutionHandler 的四个实现类
-AbortPolicy
-CallerRunsPolicy
-DiscardOldestPolicy
-DiscardPolicy
+RejectedExecutionHandler 的四个实现类  
+AbortPolicy   			//默认的拒绝策略  抛出异常
+CallerRunsPolicy 		// 拿来的去哪里 比如main方法调用的就让main方法执行
+DiscardOldestPolicy 	//队列满了就会丢掉任务 不会抛出异常
+DiscardPolicy			//队列满了，尝试竞争最早的线程  没抢到也不会抛出异常
+```
+
+
+
+###### 线程池小节和拓展：
+
+###### 如何去定义最大线程？ 
+
+###### CPU 密集 IO  密集型（调优）
+
+ 1、CPU 密集型  读取几核CPU 就是几 可以保证CPU效率最高
+
+ 2、IO  密集型  判断你程序中十分耗IO的线程的个数(一般设置大于两倍)
+
+​			例如-程序中有 15个任务正在进行 io十分占用资源
+
+```JAVA
+/**
+ * TODO 最大线程该如何去定义？
+ * 1、CPU 密集型  读取几核CPU 就是几 可以保证CPU效率最高
+ * 2、IO  密集型  判断你程序中十分耗IO的线程的个数(一般设置大于两倍)
+ *       例如-程序中有 15个任务正在进行 io十分占用资源
+ */
 ```
 
 
 
 
 
+## 12、四大函数式接口(必须掌握)
+
+
+
+函数式接口：只有一个方法的接口
+
+```
+@FunctionalInterface
+public interface Runnable {
+    public abstract void run();
+}
+```
+
+
+
+###### 1、函数式接口
+
+```JAVA
+package com.deng.function;
+
+import java.util.function.Function;
+
+/**
+ * Function 函数数接口，有一个输入参数，有一个输出参数
+ * 只要是函数型接口 可以用lambda表达式简化
+ */
+public class Demo01 {
+    public static void main(String[] args) {
+        // 点开Function<T,R> 发现传入参数 T,返回的类型是R
+//        Function function = new Function<String, String>() {
+//            @Override
+//            public String apply(String str) {
+//                return str;
+//            }
+//        };
+        //用lambda写法
+//        Function function = (str) ->{
+//            return str;
+//        };
+        //更精简的写法
+        Function function = str -> str;
+
+        System.out.println(function.apply("123"));
+    }
+}
+```
+
+
+
+###### 2、断定型接口
+
+```JAVA
+package com.deng.function;
+
+import java.util.function.Predicate;
+
+/**
+ * Predicate断定型接口，输入一个参数 返回值只能是布尔值
+ */
+public class Demo02 {
+    public static void main(String[] args) {
+        //传入一个数据返回一个布尔值
+        //可用做字符串判断
+//        Predicate<String> predicate = new Predicate<String>() {
+//            @Override
+//            public boolean test(String str) {
+//                return str.isEmpty();
+//            }
+//        };
+        Predicate<String> predicate = String::isEmpty;
+
+        System.out.println(predicate.test(""));
+    }
+}
+
+```
+
+
+
+###### 3、消费型接口
+
+```JAVA
+package com.deng.function;
+
+import java.util.function.Consumer;
+
+/**
+ * Consumer 消费型接口 : 只要输入 没有返回值
+ *
+ * @author denglei
+ * @date 2023/3/27 22:54
+ */
+public class Demo03 {
+    public static void main(String[] args) {
+//        Consumer<String> consumer = new Consumer<String>() {
+//            @Override
+//            public void accept(String str) {
+//                System.out.println(str);
+//            }
+//        };
+        Consumer<String> consumer = str -> System.out.println(str);
+        consumer.accept("123");
+    }
+}
+
+```
+
+
+
+###### 4、供给型接口
+
+```java
+package com.deng.function;
+
+import java.util.function.Supplier;
+
+/**
+ *  Supplier 没有参数只有返回值 供给形接口
+ *
+ * @author denglei
+ * @date 2023/3/27 22:58
+ */
+public class Demo04 {
+    public static void main(String[] args) {
+        Supplier<Integer> supplier = () -> 1024;
+        Integer integer = supplier.get();
+        System.out.println(integer);
+    }
+}
+
+```
+
+
+
+## 13.Stream 流计算（已掌握）
 
 
 
 
 
+## 14、ForkJoin
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#### 什么是ForkJoin?
