@@ -1360,17 +1360,109 @@ public class SynchronousQueueDemo {
 
 
 
+###### 三大方法：
+
+```JAVA
+package com.deng.thread_pool;
+
+
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+/**
+ * Executors 工具类 三大方法
+ */
+public class Demo01 {
+    public static void main(String[] args) {
+        //单例模式  单线程
+//        ExecutorService threadPool = Executors.newSingleThreadExecutor();
+        //固定的线程池的大小
+//        ExecutorService threadPool = Executors.newFixedThreadPool(5);
+        //可扩建的线程池
+        ExecutorService threadPool = Executors.newCachedThreadPool();
+
+        try {
+            for (int i = 0; i < 100; i++) {
+                //通过线程池来创建线程
+                threadPool.execute(() -> {
+                    System.out.println(Thread.currentThread().getName() + " OK");
+                });
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            //线程池用完接收
+            threadPool.shutdown();
+        }
+
+    }
+}
+
+```
 
 
 
+###### 7大参数
+
+```JAVA
+    public static ExecutorService newSingleThreadExecutor() {
+        return new FinalizableDelegatedExecutorService
+        (new ThreadPoolExecutor(1, 1,
+            0L, TimeUnit.MILLISECONDS,
+            new LinkedBlockingQueue<Runnable>()));
+    }
+
+    public static ExecutorService newFixedThreadPool(int nThreads) {
+        return new ThreadPoolExecutor(nThreads, nThreads,
+                                      0L, TimeUnit.MILLISECONDS,
+                                      new LinkedBlockingQueue<Runnable>());
+    }
+    public static ExecutorService newCachedThreadPool() {
+        return new ThreadPoolExecutor(0, Integer.MAX_VALUE,
+                                      60L, TimeUnit.SECONDS,
+                                      new SynchronousQueue<Runnable>());
+    }
+
+ //实际调用的就是这个方法 七个参数
+  public ThreadPoolExecutor(int corePoolSize, //核心线程池大小
+                            int maximumPoolSize, //最大线程池大小
+                              long keepAliveTime, 	//超时没人调用就释放
+                              TimeUnit unit,	//超时单位
+                              BlockingQueue<Runnable> workQueue, 	//阻塞对垒
+                              ThreadFactory threadFactory,		//线程工厂，创建线程，默认
+                              RejectedExecutionHandler handler) { //拒绝策略
+        if (corePoolSize < 0 ||
+            maximumPoolSize <= 0 ||
+            maximumPoolSize < corePoolSize ||
+            keepAliveTime < 0)
+            throw new IllegalArgumentException();
+        if (workQueue == null || threadFactory == null || handler == null)
+            throw new NullPointerException();
+        this.acc = System.getSecurityManager() == null ?
+                null :
+                AccessController.getContext();
+        this.corePoolSize = corePoolSize;
+        this.maximumPoolSize = maximumPoolSize;
+        this.workQueue = workQueue;
+        this.keepAliveTime = unit.toNanos(keepAliveTime);
+        this.threadFactory = threadFactory;
+        this.handler = handler;
+    }
+
+```
 
 
 
+四种拒绝策略：
 
-
-
-
-
+```JAVA
+RejectedExecutionHandler 的四个实现类
+AbortPolicy
+CallerRunsPolicy
+DiscardOldestPolicy
+DiscardPolicy
+```
 
 
 
