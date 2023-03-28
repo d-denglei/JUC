@@ -1667,4 +1667,149 @@ public class Demo04 {
 
 ## 14、ForkJoin
 
-#### 什么是ForkJoin?
+#### 什么是ForkJoin? 
+
+​	ForkJoin 在JDK1.7存在，并行执行任务！提高效率，**大数据量**！
+
+​	大数据量：Map Reduce  **把大任务拆成多个小任务** 
+
+
+
+​					
+
+​						任务
+
+​			子任务   			子任务
+
+子任务	子任务 	子任务    子任务
+
+结果			结果		结果		结果
+
+​					合并为一个最终结果
+
+·
+
+
+
+#### ForkJoin特点 ：工作窃取
+
+两个线程AB 如果A线程只执行一半，B线程执行完了，那么会从A线程哪里去拿需要处理的任务	：**ForkJoin因为维护的都是双端队列**
+
+
+
+```JAVA
+package com.deng.forjoin;
+
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.RecursiveTask;
+
+/**
+ * 求和计算
+ * 如何使用forkjoin？
+ * 1、使用 forkjoinPool 通过这个执行
+ * 2、计算任务 forkjoinPool.execute(ForkJoinTask task)
+ */
+public class ForkJoinDemo extends RecursiveTask<Long> {
+
+    private Long start;
+
+    private Long end;
+
+    //临界值
+    private Long temp = 10000L;
+
+    ForkJoinDemo(Long start, Long end) {
+        this.start = start;
+        this.end = end;
+    }
+
+    //具体业务执行
+    @Override
+    protected Long compute() {
+        if ((end - start) > temp) {
+            //通过分支合并去计算
+            ForkJoinPool forkJoinPool = new ForkJoinPool();
+            //中间值
+            long middle = (start + end) / 2;
+
+            ForkJoinDemo task1 = new ForkJoinDemo(start, middle);
+            task1.fork();//把任务压入线程队列
+
+            ForkJoinDemo task2 = new ForkJoinDemo(middle + 1, end);
+            task2.fork();
+            //join 阻塞当前线程获取返回结果
+            long l = task1.join() + task2.join();
+            return l;
+
+        } else {
+            long sum = 0L;
+            for (Long i = start; i <= end; i++) {
+                sum += i;
+            }
+            return sum;
+        }
+    }
+}
+
+```
+
+
+
+```java
+package com.deng.forjoin;
+
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ForkJoinTask;
+import java.util.stream.LongStream;
+
+/**
+ * @author denglei
+ * @date 2023/3/28 22:36
+ */
+public class ForkJoinTest {
+    public static void main(String[] args) throws Exception {
+//        test1();
+        test2();
+        test3();
+    }
+
+    //普通计算
+    public static void test1() {
+        Long sum = 0L;
+        long start = System.currentTimeMillis();
+        for (Long i = 1L; i <= 10_0000_0000; i++) {
+            sum += i;
+        }
+        long end = System.currentTimeMillis();
+        System.out.println("sum =" + sum + " 时间" + (end - start));
+    }
+
+    //通过 ForkJoIn
+    public static void test2() throws Exception {
+
+        long start = System.currentTimeMillis();
+        ForkJoinPool forkJoinPool = new ForkJoinPool();
+        ForkJoinTask<Long> forkJoinDemo = new ForkJoinDemo(0L, 10_0000_0000L);
+        forkJoinPool.execute(forkJoinDemo);//提交任务
+        long sum = forkJoinDemo.get();
+
+
+        long end = System.currentTimeMillis();
+        System.out.println("sum =" + sum + " 时间" + (end - start));
+    }
+
+    //通过Stream的并行流  可以看到用并行流处理速度最快
+    public static void test3() {
+        long start = System.currentTimeMillis();
+        long sum = LongStream.rangeClosed(0L, 10_0000_0000L).parallel().reduce(0, Long::sum);
+        long end = System.currentTimeMillis();
+        System.out.println("sum =" + sum + " 时间" + (end - start));
+    }
+}
+
+```
+
+
+
+
+
