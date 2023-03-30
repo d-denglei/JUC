@@ -816,7 +816,7 @@ class MyThread implements Callable<String> {
 
 ##### 细节：
 
-1、同一个feturetask多次执行的话只会获取第一个结果，根据源码执行run方法会去判断 state如果state状态不是新建状态0就会直接返回
+1、同一个futuretask多次执行的话只会获取第一个结果，根据源码执行run方法会去判断 state如果state状态不是新建状态0就会直接返回
 
 2、 结果可能会需要等待，会阻塞！
 
@@ -1808,6 +1808,77 @@ public class ForkJoinTest {
 }
 
 ```
+
+
+
+
+
+## 15、异步回调FutureTask
+
+
+
+
+
+**开启==线程==执行任务，不管是使用Runnable(无返回值不支持上报异常)还是Callable(有返回值支持上报异常)接口 都可以轻松实现。**
+
+**但是如何在使用==线程池==的情况下获取结果归集如何实现？**
+
+**Java-多线程 Future、 FutureTask 、CompletionService、CompletableFuture解决多线程中并发归集问题的效率对比！**
+
+
+
+|              | Future                                | FutureTask                                                   | CompletionService                                            | CompletableFuture                                            |
+| ------------ | ------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ |
+|              | Future接口                            | 接口RunnableFuture的唯一实现类,RunnableFuture继承自Future+Runnable | 内部通过阻塞队列+FutureTask接口                              | JDK8实现了Future<T>,CompletionStage两个接口                  |
+| 事物并发执行 | 支持                                  | 支持                                                         | 支持                                                         | 支持                                                         |
+| 获取任务结果 | 支持任务完成先后顺序                  | 位置                                                         | 支持任务完成的先后顺序                                       | 支持任务完成的先后顺序                                       |
+| 异常捕捉     | 自己捕捉                              | 自己捕捉                                                     | 自己捕捉                                                     | 源生API支持，返回每个任务的异常                              |
+|              | Cpu高速轮询，耗资源，可以使用(不推荐) | 功能不对口，并发任务多套一层 不推荐                          | <font color ='red'>推荐使用</font>，在Jdk8CompletableFuture出现之前最好的解决方案 | <font color ='red'>推荐使用,API极端丰富，配合流式编程，速度很快</font> |
+
+Future对于结果的获取，不是很友好，只能通过**阻塞**或者**轮询的方式**得到任务的结果。
+
+- Future.get() 就是阻塞调用，在线程获取结果之前**get方法会一直阻塞**。
+- Future提供了一个isDone方法，可以在程序中**轮询这个方法查询**执行结果。
+
+**阻塞的方式和异步编程的设计理念相违背，而轮询的方式会耗费无谓的CPU资源**。因此，JDK8设计出CompletableFuture，
+
+CompletableFuture提供了一种观察者模式类似的机制，可以让**任务执行完成后通知监听的一方。**
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
