@@ -12,7 +12,7 @@ public class CountDownLatchDemo {
     public static void main(String[] args) throws InterruptedException {
         //总数是6 必须要等6执行任务的时候再使用!
         CountDownLatch countDownLatch = new CountDownLatch(6);
-        for (int i = 1; i <= 6; i++) {
+        for (int i = 1; i <= 8; i++) {
             new Thread(() -> {
                 System.out.println(Thread.currentThread().getName() + "Go out");
                 countDownLatch.countDown();//数量-1
