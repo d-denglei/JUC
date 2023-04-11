@@ -2292,13 +2292,13 @@ public class CompletableFutureDemo11 {
 
 ## 16、JMM
 
-###### **Volatil是什么？**
+###### **Volatile是什么？**
 
 Volatile是java虚拟机提供的轻量级的同步机制
 
-1. 保证可见性
-2. 不保证原子性
-3. 禁止指令重排
+1. <font color = 'red'>保证可见性</font>
+2. <font color = 'red'>不保证原子性</font>
+3. <font color = 'red'>禁止指令重排</font>
 
 ###### 什么是JMM?
 
@@ -2312,7 +2312,7 @@ Volatile是java虚拟机提供的轻量级的同步机制
 
 2、线程加锁前，必须读取主内存中的最新值到工作内存中！
 
-3、加锁和解锁是同意把锁
+3、加锁和解锁是同一把锁
 
 
 
@@ -2330,39 +2330,176 @@ Volatile是java虚拟机提供的轻量级的同步机制
 
 ##### 4组原子操作
 
-​	1、从主存读取 **read**然后载入**load**到工作内存  这两个操作是**一组操作**
 
-​	2、执行引擎使用**user**工作内存的值，然后执行完**assign**返回给工作内存 这是**一组操作**
 
-​	3、从
+**1、lock（锁定）**：作用于主内存中的变量，把一个变量表示为一个线程独占的状态
 
-​	4、
+**2、unlock（解锁）**：作用于主内存中的变量，把一个处于锁定状态的变量释放出来，释放后的变量才可以被其他线程锁定
 
 
 
+**3、read（读取）**：作用于主内存的变量，把一个变量的值从主内存读取到线程的工作内存中，以便于后面的load操作
+
+**4、load（载入）**：作用于工作内存中的变量，把read操作从主存中得到的变量值放入工作内存中的变量副本
+
+
+
+**5、use（使用）**：作用于工作内存中的变量，把工作内存中的一个变量的值传递给执行引擎，每当虚拟机遇到一个需要使用变量的值的字节码指令时将会执行这个操作
+
+**6、assign（赋值）**：作用于工作内存中的变量，把一个从执行引擎接收到的值赋给工作内存的变量，每当虚拟机遇到一个给变量赋值的字节码指令时就执行这个操作
+
+**7、store（存储）**：作用于工作内存中的变量，把工作内存中一个变量的值传送给主存中以便于后面的write操作
+
+**8、write（写入）**：作用于主内存中的变量，把store操作从工作内存中得到的变量的值放入主内存的变量中
+
+
+
+**JMM对这八种指令的使用，制定了如下规则 :**
+**1、**不允许read和load、store和write操作之一单独出现。即使用了read必须load，使用了store必须write。不允许线程丢弃他最近的assign操作，即工作变量的数据改变了之后，必须告知主存
+**2、**不允许一个线程将没有assign的数据从工作内存同步回主内存
+**3、**一个新的变量必须在主内存中诞生，不允许工作内存直接使用一个未被初始化的变量。就是对变量实施use、store操作之前，必须经过assign和load操作
+**4、**一个变量同一时间只有一个线程能对其进行lock。多次lock后，必须执行相同次数的unlock才能解锁。如果对一个变量进行lock操作，会清空所有工作内存中此变量的值，在执行引擎使用这个变量前，必须重新load或assign操作初始化变量的值
+**5、**如果一个变量没有被lock，就不能对其进行unlock操作。也不能unlock一个被其他线程锁住的变量。 对一个变量进行unlock操作之前，必须把此变量同步回主内存
 
 
 
 
 
+```JAVA
+package com.deng.volatile_test;
+
+import java.util.concurrent.TimeUnit;
+
+/**
+ * @author DengLei
+ * @date 2023/04/11 16:40
+ */
+
+public class JMMDemo {
+    //没加 volatile 发现main方法并未停止
+    private static int num = 0;
+
+    public static void main(String[] args) {
+
+        new Thread(() -> { //线程1
+            while (num == 0) {
+
+            }
+        }).start();
+
+        try {
+            TimeUnit.SECONDS.sleep(1);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        num = 1;
+        System.out.println(Thread.currentThread().getName() + "" + num);
+    }
+}
+
+```
+
+执行main方法 发现能够正常打印num值1 但是主线程结束以后 线程1并未结束
+
+是因为 主内存中的num 在线程1中的变化是不知道的。
+
+
+
+## 17、Volatile
+
+
+
+#### 1、可见性
+
+```
+package com.deng.volatile_test;
+
+import java.util.concurrent.TimeUnit;
+
+/**
+ * @author DengLei
+ * @date 2023/04/11 16:40
+ */
+
+public class JMMDemo {
+    //没加 volatile 发现main方法并未停止会进入死循环
+    
+    private volatile static int num = 0;
+
+    public static void main(String[] args) {
+
+        new Thread(() -> { //线程1
+            while (num == 0) {
+
+            }
+        }).start();
+
+        try {
+            TimeUnit.SECONDS.sleep(1);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        num = 1;
+        System.out.println(Thread.currentThread().getName() + "" + num);
+    }
+}
+
+```
+
+
+
+#### 2、不保证原子性
+
+原子性：不可分割 要么都成功 要么都失败
+
+```JAVA
+package com.deng.volatile_test;
+
+/**
+ * @author DengLei
+ * @date 2023/04/11 17:22
+ */
+
+//不保证原子性
+public class JMMDemo02 {
+
+    private volatile static int num = 0;
+
+    public static void add() {
+        num++;
+    }
+
+    public static void main(String[] args) {
+
+        //理论上num结果是2万
+        for (int i = 0; i < 20; i++) {
+            new Thread(() -> {
+                for (int j = 0; j < 1000; j++) {
+                    add();
+                }
+            }).start();
+        }
+
+        while (Thread.activeCount() > 2) { //main  gc
+            Thread.yield();
+        }
+        System.out.println(Thread.currentThread().getName() + " " + num);
+    }
+}
+
+```
+
+
+
+###### 如果不加 lock 或者synchronized ，如何保证原子性？
 
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+#### 3、禁止指令重排
 
 
 
