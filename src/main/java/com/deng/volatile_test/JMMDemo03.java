@@ -1,35 +1,25 @@
 package com.deng.volatile_test;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 /**
  * @author DengLei
  * @date 2023/04/11 17:22
  */
 
 //不保证原子性
-public class JMMDemo02 {
+public class JMMDemo03 {
 
-    private volatile static int num = 0;
+    private volatile static AtomicInteger num = new AtomicInteger();
 
     public static void add() {
-        num++;
+        num.getAndIncrement(); //+1 原子类的+1 CAS自旋
     }
 
     public static void main(String[] args) {
-        //通过使用信号量 控制也可以打到效果 类似加锁
-//        Semaphore semaphore = new Semaphore(1);
         //理论上num结果是2万
         for (int i = 0; i < 20; i++) {
             new Thread(() -> {
-//                for (int j = 0; j < 1000; j++) {
-//                    try {
-////                        semaphore.acquire();
-//                        add();
-//                    } catch (InterruptedException e) {
-//                        e.printStackTrace();
-//                    } finally {
-//                        semaphore.release();
-//                    }
-//                }
                 for (int j = 0; j < 1000; j++) {
                     add();
                 }
